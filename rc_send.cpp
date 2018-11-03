@@ -7,7 +7,7 @@
 int main(int argc, char *argv[]) {
     int ib_port = 1;
     int port = 12345;
-    int size = 4096;
+    int size = 4096 * 10;
     int page_size = static_cast<int>(sysconf(_SC_PAGESIZE));
     int rx_depth = 500;
 

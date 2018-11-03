@@ -6,7 +6,8 @@
 #include "check.h"
 
 rdma_context::rdma_context(int ib_port, int size, int page_size, int rx_depth) :
-        ib_port(static_cast<uint8_t>(ib_port)), size(size), rx_depth(rx_depth), send_flags(IBV_SEND_SIGNALED),
+        ib_port(static_cast<uint8_t>(ib_port)), size(size), page_size(page_size),
+        rx_depth(rx_depth), send_flags(IBV_SEND_SIGNALED),
         pending(0), iters(1000), scnt(0), rcnt(0) {
     int access_flags = IBV_ACCESS_LOCAL_WRITE;
 
@@ -216,8 +217,13 @@ void rdma_context::benchmark() {
         return;
     }
 
-    if (!connection->is_server) { //client
+    if (!connection->is_server) { //client side
         pending |= RDMA_SEND_WRID;
+
+        for (int i = 0; i < size; i += page_size) {
+            buf[i] = i / page_size % sizeof(char);
+        }
+
         if (post_send()) {
             fprintf(stderr, "Couldn't post send\n");
             return;
@@ -244,6 +250,12 @@ void rdma_context::benchmark() {
     if (gettimeofday(&end, nullptr)) {
         perror("get time of day");
         return;
+    }
+
+    if (connection->is_server) { //server side
+        for (int i = 0; i < size; i += page_size)
+            if (buf[i] != i / page_size % sizeof(char))
+                printf("invalid data in page %d\n", i / page_size);
     }
 }
 
@@ -291,8 +303,8 @@ void rdma_context::print_statistics() {
                  (end.tv_usec - start.tv_usec);
     long long bytes = (long long) size * iters * 2;
 
-    printf("%lld bytes in %.2f seconds = %.2f Mbit/sec\n",
-           bytes, usec / 1000000., bytes * 8. / usec);
+    printf("%lld bytes in %.2f seconds = %.2f MB/sec\n",
+           bytes, usec / 1000000., bytes / usec);
     printf("%d iters in %.2f seconds = %.2f usec/iter\n",
            iters, usec / 1000000., usec / iters);
 }

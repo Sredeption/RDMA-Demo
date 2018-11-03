@@ -25,6 +25,7 @@ public:
     char *buf;
     uint8_t ib_port;
     int size;
+    int page_size;
     unsigned int send_flags;
     int rx_depth;
     int pending;
