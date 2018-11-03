@@ -13,6 +13,7 @@ public:
     rdma_identifier *local;
     rdma_identifier *remote;
 
+    int listen_fd;
     int socket_fd;
     bool is_server;
 

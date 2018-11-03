@@ -254,13 +254,14 @@ int rdma_context::process_wc(uint64_t wr_id, ibv_wc_status status) {
         return 1;
     }
 
+
     switch (wr_id) {
         case RDMA_SEND_WRID:
-            --scnt;
+            ++scnt;
             break;
         case RDMA_RECV_WRID:
             if (--routs <= 1) {
-                routs = post_recv(rx_depth - routs);
+                routs += post_recv(rx_depth - routs);
                 if (routs < rx_depth) {
                     fprintf(stderr, "Couldn't post receive (%d)\n", routs);
                     return 1;
@@ -274,7 +275,7 @@ int rdma_context::process_wc(uint64_t wr_id, ibv_wc_status status) {
             return 1;
     }
 
-    pending = ~static_cast<int>(wr_id);
+    pending &= ~static_cast<int>(wr_id);
     if (scnt < iters && !pending) {
         if (post_send()) {
             fprintf(stderr, "Couldn't post send\n");

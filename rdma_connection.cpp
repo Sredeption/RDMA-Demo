@@ -25,8 +25,7 @@ void rdma_connection::listen(int port) {
     is_server = true;
 
     char *service;
-    int listen_fd;
-    int n, conn_fd;
+    int n;
 
     CHECK_N(asprintf(&service, "%d", port),
             "Error writing port-number to port-string");
@@ -44,12 +43,11 @@ void rdma_connection::listen(int port) {
 
     ::listen(listen_fd, 1);
 
-    CHECK_N(conn_fd = accept(listen_fd, nullptr, 0),
+    CHECK_N(socket_fd = accept(listen_fd, nullptr, nullptr),
             "server accept failed");
-
     freeaddrinfo(res);
 
-    socket_fd = conn_fd;
+
 }
 
 void rdma_connection::connect(char *server_name, int port) {
@@ -62,7 +60,6 @@ void rdma_connection::connect(char *server_name, int port) {
     hints.ai_socktype = SOCK_STREAM;
 
     char *service;
-    int conn_fd = -1;
 
     CHECK_N(asprintf(&service, "%d", port),
             "Error writing port-number to port-string");
@@ -71,18 +68,16 @@ void rdma_connection::connect(char *server_name, int port) {
             "getaddrinfo threw error");
 
     for (t = res; t; t = t->ai_next) {
-        CHECK_N(conn_fd = socket(t->ai_family, t->ai_socktype, t->ai_protocol),
+        CHECK_N(socket_fd = socket(t->ai_family, t->ai_socktype, t->ai_protocol),
                 "Could not create client socket");
 
-        CHECK_N(::connect(conn_fd, t->ai_addr, t->ai_addrlen),
+        CHECK_N(::connect(socket_fd, t->ai_addr, t->ai_addrlen),
                 "Could not connect to server");
 
         printf("connect successfully\n");
     }
 
     freeaddrinfo(res);
-
-    socket_fd = conn_fd;
 }
 
 int rdma_connection::exchange() {
@@ -99,6 +94,10 @@ int rdma_connection::exchange() {
         perror("Could not receive connection_details to peer");
         return -1;
     }
+
+    close(socket_fd);
+    if (is_server)
+        close(listen_fd);
 
     return 0;
 }
